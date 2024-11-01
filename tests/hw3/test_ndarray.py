@@ -1,3 +1,6 @@
+import sys
+sys.path.append("./python")
+
 import numpy as np
 import pytest
 import mugrade

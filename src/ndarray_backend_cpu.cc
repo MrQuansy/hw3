@@ -32,6 +32,25 @@ struct AlignedArray {
   size_t size;
 };
 
+namespace {
+template <typename Func>
+void DimLoopImpl(const std::vector<int32_t> &shape,
+                 const std::vector<int32_t> &strides, size_t offset, size_t dim,
+                 Func &&func) {
+  if (dim == shape.size() - 1) {
+    for (int i = 0; i < shape[dim]; i++) {
+      func(offset);
+      offset += strides[dim];
+    }
+    return;
+  }
+  for (int i = 0; i < shape[dim]; i++) {
+    DimLoopImpl(shape, strides, offset, dim + 1, std::forward<Func>(func));
+    offset += strides[dim];
+  }
+}
+} // namespace
+
 void Fill(AlignedArray *out, scalar_t val) {
   /**
    * Fill the values of an aligned array with val
@@ -61,7 +80,9 @@ void Compact(const AlignedArray &a, AlignedArray *out,
    * this note.)
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  size_t out_offset{};
+  DimLoopImpl(shape, strides, offset, 0,
+              [&](size_t offset) { out->ptr[out_offset++] = a.ptr[offset]; });
   /// END SOLUTION
 }
 
@@ -80,7 +101,9 @@ void EwiseSetitem(const AlignedArray &a, AlignedArray *out,
    * compact)
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  size_t out_offset{};
+  DimLoopImpl(shape, strides, offset, 0,
+              [&](size_t offset) { out->ptr[offset] = a.ptr[out_offset++]; });
   /// END SOLUTION
 }
 
@@ -100,7 +123,8 @@ void ScalarSetitem(const size_t size, scalar_t val, AlignedArray *out,
    */
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  DimLoopImpl(shape, strides, offset, 0,
+              [&](size_t offset) { out->ptr[offset] = val; });
   /// END SOLUTION
 }
 

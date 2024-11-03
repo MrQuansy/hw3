@@ -408,7 +408,7 @@ class NDArray:
             assert idx.step > 0 and idx.stop - idx.start > 0
             new_offset += self.strides[i] * idx.start
             new_stride[i] *= idx.step
-        new_shape = tuple((idx.stop - idx.start) // idx.step for idx in idxs)
+        new_shape = tuple(math.ceil((idx.stop - idx.start) / idx.step) for idx in idxs)
         return self.make(
             new_shape,
             strides=tuple(new_stride),

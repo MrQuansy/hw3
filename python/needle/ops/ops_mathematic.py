@@ -299,5 +299,3 @@ class ReLU(TensorOp):
 
 def relu(a):
     return ReLU()(a)
-
-

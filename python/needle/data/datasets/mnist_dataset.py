@@ -2,6 +2,7 @@ from typing import List, Optional
 from ..data_basic import Dataset
 import numpy as np
 
+
 class MNISTDataset(Dataset):
     def __init__(
         self,

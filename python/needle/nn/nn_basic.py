@@ -1,5 +1,6 @@
 """The module.
 """
+
 from typing import List, Callable, Any
 from needle.autograd import Tensor
 from needle import ops
@@ -110,6 +111,7 @@ class ReLU(Module):
         raise NotImplementedError()
         ### END YOUR SOLUTION
 
+
 class Sequential(Module):
     def __init__(self, *modules):
         super().__init__()
@@ -142,7 +144,6 @@ class BatchNorm1d(Module):
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
-
 
 
 class LayerNorm1d(Module):

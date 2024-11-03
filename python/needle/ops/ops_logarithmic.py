@@ -7,6 +7,7 @@ from .ops_mathematic import *
 
 import numpy as array_api
 
+
 class LogSoftmax(TensorOp):
     def compute(self, Z):
         ### BEGIN YOUR SOLUTION
@@ -40,4 +41,3 @@ class LogSumExp(TensorOp):
 
 def logsumexp(a, axes=None):
     return LogSumExp(axes=axes)(a)
-

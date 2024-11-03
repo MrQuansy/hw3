@@ -1,4 +1,5 @@
 """Core data structures."""
+
 import needle
 from .backend_numpy import Device, cpu, all_devices
 from typing import List, Optional, NamedTuple, Tuple, Union
@@ -15,9 +16,11 @@ TENSOR_COUNTER = 0
 # as the backend for our computations, this line will change in later homeworks
 
 import numpy as array_api
+
 NDArray = numpy.ndarray
 
 from .backend_selection import array_api, NDArray
+
 
 class Op:
     """Operator definition."""
@@ -248,9 +251,9 @@ class Tensor(Value):
         tensor._init(
             None,
             [],
-            cached_data=data
-            if not isinstance(data, Tensor)
-            else data.realize_cached_data(),
+            cached_data=(
+                data if not isinstance(data, Tensor) else data.realize_cached_data()
+            ),
             requires_grad=requires_grad,
         )
         return tensor
@@ -358,8 +361,6 @@ class Tensor(Value):
 
     def transpose(self, axes=None):
         return needle.ops.Transpose(axes)(self)
-
-
 
     __radd__ = __add__
     __rmul__ = __mul__

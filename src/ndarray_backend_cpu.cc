@@ -1,3 +1,4 @@
+#include <numeric>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -341,7 +342,11 @@ void ReduceMax(const AlignedArray &a, AlignedArray *out, size_t reduce_size) {
    */
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  assert(a.size == out->size * reduce_size);
+  for (size_t i = 0; i < a.size; i += reduce_size) {
+    out->ptr[i / reduce_size] =
+        *std::max_element(a.ptr + i, a.ptr + i + reduce_size);
+  }
   /// END SOLUTION
 }
 
@@ -356,7 +361,11 @@ void ReduceSum(const AlignedArray &a, AlignedArray *out, size_t reduce_size) {
    */
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  assert(a.size == out->size * reduce_size);
+  for (size_t i = 0; i < a.size; i += reduce_size) {
+    out->ptr[i / reduce_size] =
+        std::accumulate(a.ptr + i, a.ptr + i + reduce_size, scalar_t(0.0));
+  }
   /// END SOLUTION
 }
 
@@ -419,6 +428,6 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
   // m.def("matmul", Matmul);
   // m.def("matmul_tiled", MatmulTiled);
 
-  // m.def("reduce_max", ReduceMax);
-  // m.def("reduce_sum", ReduceSum);
+  m.def("reduce_max", ReduceMax);
+  m.def("reduce_sum", ReduceSum);
 }

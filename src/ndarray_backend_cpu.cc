@@ -269,7 +269,13 @@ void Matmul(const AlignedArray &a, const AlignedArray &b, AlignedArray *out,
    */
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  for (size_t i = 0; i < m; i++)
+    for (size_t j = 0; j < p; j++) {
+      out->ptr[i * p + j] = 0.0;
+      for (size_t k = 0; k < n; k++) {
+        out->ptr[i * p + j] += a.ptr[i * n + k] * b.ptr[k * p + j];
+      }
+    }
   /// END SOLUTION
 }
 
@@ -300,7 +306,15 @@ inline void AlignedDot(const float *__restrict__ a, const float *__restrict__ b,
   out = (float *)__builtin_assume_aligned(out, TILE * ELEM_SIZE);
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  for (size_t i = 0; i < TILE; i++) {
+    for (size_t j = 0; j < TILE; j++) {
+      float sum = 0;
+      for (size_t k = 0; k < TILE; k++) {
+        sum += a[i * TILE + k] * b[k * TILE + j];
+      }
+      out[i * TILE + j] += sum;
+    }
+  }
   /// END SOLUTION
 }
 
@@ -327,7 +341,25 @@ void MatmulTiled(const AlignedArray &a, const AlignedArray &b,
    *
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  size_t nm = m / TILE;
+  size_t nn = n / TILE;
+  size_t np = p / TILE;
+
+  for (size_t i = 0; i < nm; i++) {
+    for (size_t j = 0; j < np; j++) {
+      float *out_block = out->ptr + (i * np + j) * TILE * TILE;
+
+      for (size_t t = 0; t < TILE * TILE; t++) {
+        out_block[t] = 0;
+      }
+      for (size_t k = 0; k < nn; k++) {
+        const float *a_block = a.ptr + (i * nn + k) * TILE * TILE;
+        const float *b_block = b.ptr + (k * np + j) * TILE * TILE;
+
+        AlignedDot(a_block, b_block, out_block);
+      }
+    }
+  }
   /// END SOLUTION
 }
 
@@ -425,8 +457,8 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
   m.def("ewise_exp", EwiseExp);
   m.def("ewise_tanh", EwiseTanh);
 
-  // m.def("matmul", Matmul);
-  // m.def("matmul_tiled", MatmulTiled);
+  m.def("matmul", Matmul);
+  m.def("matmul_tiled", MatmulTiled);
 
   m.def("reduce_max", ReduceMax);
   m.def("reduce_sum", ReduceSum);

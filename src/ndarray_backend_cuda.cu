@@ -504,6 +504,20 @@ void Matmul(const CudaArray &a, const CudaArray &b, CudaArray *out, uint32_t M,
 // Max and sum reductions
 ////////////////////////////////////////////////////////////////////////////////
 
+__global__ void ReduceMaxKernel(const scalar_t *a, scalar_t *out, size_t size,
+                                size_t a_size) {
+  size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t start = gid * size;
+  size_t end = min(start + size, a_size);
+  if (start < end) {
+    scalar_t max_val = a[start];
+    for (size_t i = start + 1; i < end; i++) {
+      max_val = max(max_val, a[i]);
+    }
+    out[gid] = max_val;
+  }
+}
+
 void ReduceMax(const CudaArray &a, CudaArray *out, size_t reduce_size) {
   /**
    * Reduce by taking maximum over `reduce_size` contiguous blocks.  Even though
@@ -516,8 +530,24 @@ void ReduceMax(const CudaArray &a, CudaArray *out, size_t reduce_size) {
    *   redice_size: size of the dimension to reduce over
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  CudaDims dim = CudaOneDim(out->size);
+  ReduceMaxKernel<<<dim.grid, dim.block>>>(a.ptr, out->ptr, reduce_size,
+                                           a.size);
   /// END SOLUTION
+}
+
+__global__ void ReduceSumKernel(const scalar_t *a, scalar_t *out, size_t size,
+                                size_t a_size) {
+  size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+  size_t start = gid * size;
+  size_t end = min(start + size, a_size);
+  if (start >= end) {
+    return;
+  }
+  out[gid] = 0;
+  for (size_t i = start; i < end; i++) {
+    out[gid] += a[i];
+  }
 }
 
 void ReduceSum(const CudaArray &a, CudaArray *out, size_t reduce_size) {
@@ -531,7 +561,9 @@ void ReduceSum(const CudaArray &a, CudaArray *out, size_t reduce_size) {
    *   redice_size: size of the dimension to reduce over
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  CudaDims dim = CudaOneDim(out->size);
+  ReduceSumKernel<<<dim.grid, dim.block>>>(a.ptr, out->ptr, reduce_size,
+                                           a.size);
   /// END SOLUTION
 }
 

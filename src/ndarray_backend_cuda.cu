@@ -469,6 +469,78 @@ void EwiseTanh(const CudaArray &a, CudaArray *out) {
   EwiseTanhKernel<<<dim.grid, dim.block>>>(a.ptr, out->ptr, out->size);
 }
 
+__global__ void MatmulKernel(const scalar_t *a, const scalar_t *b, scalar_t *c,
+                             uint32_t M, uint32_t N, uint32_t P) {
+#define V 2
+  int block_x = blockIdx.x;
+  int block_y = blockIdx.y;
+  int thread_x = threadIdx.x;
+  int thread_y = threadIdx.y;
+  int thread_id = thread_x + thread_y * blockDim.x;
+  int nthreads = blockDim.x * blockDim.y;
+
+  __shared__ scalar_t a_shared[TILE][TILE];
+  __shared__ scalar_t b_shared[TILE][TILE];
+  scalar_t c_reg[V][V] = {0};
+  scalar_t a_reg[V] = {0}, b_reg[V] = {0};
+
+  for (int start = 0; start < N; start += TILE) {
+    __syncthreads();
+    for (int idx = thread_id; idx < TILE * TILE; idx += nthreads) {
+      int x = idx / TILE; // 在shared中的索引
+      int y = idx % TILE; // 在shared中的索引
+      if (x + block_x * TILE < M && y + start < N) {
+        a_shared[x][y] = a[(x + block_x * TILE) * N + y + start];
+      }
+      if (x + start < N && y + block_y * TILE < P) {
+        b_shared[x][y] = b[(x + start) * P + y + block_y * TILE];
+      }
+    }
+    __syncthreads();
+    int stripe_cnt = min(TILE, N - start);
+    for (int stripe_i = 0; stripe_i < stripe_cnt; stripe_i++) {
+      if (thread_x * V >= TILE || thread_y * V >= TILE)
+        continue;
+      for (int reg_x = 0; reg_x < V; reg_x++) {
+        int shared_x = reg_x + thread_x * V;
+        if (shared_x >= TILE) {
+          break;
+        }
+        a_reg[reg_x] = a_shared[shared_x][stripe_i];
+      }
+      for (int reg_y = 0; reg_y < V; reg_y++) {
+        int shared_y = reg_y + thread_y * V;
+        if (shared_y >= TILE) {
+          printf("quit: thread id: %d, shared_y: %d, TILE: %d\n", thread_id,
+                 shared_y, TILE);
+          break;
+        }
+        b_reg[reg_y] = b_shared[stripe_i][shared_y];
+      }
+      for (int i = 0; i < V; i++) {
+        for (int j = 0; j < V; j++) {
+          c_reg[i][j] += a_reg[i] * b_reg[j];
+        }
+      }
+    }
+  }
+
+  if (thread_x * V >= TILE || thread_y * V >= TILE)
+    return;
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++) {
+      int x = block_x * TILE + thread_x * V + i;
+      int y = block_y * TILE + thread_y * V + j;
+      if (x < M && y < P) {
+        c[x * P + y] = c_reg[i][j];
+      } else {
+        break;
+      }
+    }
+  }
+#undef V
+}
+
 void Matmul(const CudaArray &a, const CudaArray &b, CudaArray *out, uint32_t M,
             uint32_t N, uint32_t P) {
   /**
@@ -496,7 +568,9 @@ void Matmul(const CudaArray &a, const CudaArray &b, CudaArray *out, uint32_t M,
    */
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  dim3 grid_dim = dim3((M + TILE - 1) / TILE, (P + TILE - 1) / TILE, 1);
+  dim3 block_dim = dim3(16, 16, 1);
+  MatmulKernel<<<grid_dim, block_dim>>>(a.ptr, b.ptr, out->ptr, M, N, P);
   /// END SOLUTION
 }
 
@@ -638,8 +712,8 @@ PYBIND11_MODULE(ndarray_backend_cuda, m) {
   m.def("ewise_exp", EwiseExp);
   m.def("ewise_tanh", EwiseTanh);
 
-  // m.def("matmul", Matmul);
+  m.def("matmul", Matmul);
 
-  // m.def("reduce_max", ReduceMax);
-  // m.def("reduce_sum", ReduceSum);
+  m.def("reduce_max", ReduceMax);
+  m.def("reduce_sum", ReduceSum);
 }

@@ -83,6 +83,23 @@ void Fill(CudaArray *out, scalar_t val) {
 // Untility function to convert contiguous index i to memory location from
 // strides
 
+__device__ size_t get_strided_index(size_t gid, CudaVec shape, CudaVec strides,
+                                    size_t offset) {
+  size_t idx[MAX_VEC_SIZE];
+  size_t tmp = gid;
+
+  for (int i = shape.size - 1; i >= 0; i--) {
+    idx[i] = tmp % shape.data[i];
+    tmp /= shape.data[i];
+  }
+
+  size_t strided_index = offset;
+  for (uint32_t i = 0; i < shape.size; i++) {
+    strided_index += idx[i] * strides.data[i];
+  }
+  return strided_index;
+}
+
 __global__ void CompactKernel(const scalar_t *a, scalar_t *out, size_t size,
                               CudaVec shape, CudaVec strides, size_t offset) {
   /**
@@ -101,7 +118,10 @@ __global__ void CompactKernel(const scalar_t *a, scalar_t *out, size_t size,
   size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
 
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  if (gid < size) {
+    size_t strided_idx = get_strided_index(gid, shape, strides, offset);
+    out[gid] = a[strided_idx];
+  }
   /// END SOLUTION
 }
 
@@ -130,6 +150,17 @@ void Compact(const CudaArray &a, CudaArray *out, std::vector<int32_t> shape,
       a.ptr, out->ptr, out->size, VecToCuda(shape), VecToCuda(strides), offset);
 }
 
+__global__ void EwiseSetitemKernel(const scalar_t *a, scalar_t *out,
+                                   size_t size, CudaVec shape, CudaVec strides,
+                                   size_t offset) {
+  size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (gid < size) {
+    size_t strided_idx = get_strided_index(gid, shape, strides, offset);
+    out[strided_idx] = a[gid];
+  }
+}
+
 void EwiseSetitem(const CudaArray &a, CudaArray *out,
                   std::vector<int32_t> shape, std::vector<int32_t> strides,
                   size_t offset) {
@@ -147,8 +178,21 @@ void EwiseSetitem(const CudaArray &a, CudaArray *out,
    * compact)
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  CudaDims dim = CudaOneDim(out->size);
+  EwiseSetitemKernel<<<dim.grid, dim.block>>>(
+      a.ptr, out->ptr, a.size, VecToCuda(shape), VecToCuda(strides), offset);
   /// END SOLUTION
+}
+
+__global__ void ScalarSetitemKernel(scalar_t val, scalar_t *out, size_t size,
+                                    CudaVec shape, CudaVec strides,
+                                    size_t offset) {
+  size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (gid < size) {
+    size_t strided_idx = get_strided_index(gid, shape, strides, offset);
+    out[strided_idx] = val;
+  }
 }
 
 void ScalarSetitem(size_t size, scalar_t val, CudaArray *out,
@@ -166,7 +210,9 @@ void ScalarSetitem(size_t size, scalar_t val, CudaArray *out,
    * strides of the out array offset: offset of the out array
    */
   /// BEGIN SOLUTION
-  assert(false && "Not Implemented");
+  CudaDims dim = CudaOneDim(out->size);
+  ScalarSetitemKernel<<<dim.grid, dim.block>>>(
+      val, out->ptr, size, VecToCuda(shape), VecToCuda(strides), offset);
   /// END SOLUTION
 }
 
